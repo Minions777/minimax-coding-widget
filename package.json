@@ -1,0 +1,34 @@
+{
+  "name": "minimax-coding-widget",
+  "version": "1.0.0",
+  "description": "MiniMax Coding Plan 用量监控桌面小工具",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build": "electron-builder --win",
+    "build:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.minimax.coding-widget",
+    "productName": "MiniMax Coding Widget",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  }
+}
