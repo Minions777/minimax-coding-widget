@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://www.minimaxi.com;">
+    <title>MiniMax Coding Plan 用量监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --accent-primary: #7c3aed;
+            --accent-secondary: #06b6d4;
+            --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --text-muted: #718096;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            user-select: none;
+        }
+        .widget-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .widget-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 200px;
+            background: var(--accent-gradient);
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo {
+            width: 40px; height: 40px;
+            background: var(--accent-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+        .logo svg { width: 24px; height: 24px; }
+        .title-section h1 { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+        .title-section .subtitle { font-size: 12px; color: var(--text-muted); }
+        .status-indicator {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+        .status-indicator.loading .status-dot { background: var(--warning); animation: pulse 1s infinite; }
+        .status-indicator.success .status-dot { background: var(--success); }
+        .status-indicator.error .status-dot { background: var(--danger); }
+        @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+        .usage-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .usage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .usage-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+        .usage-percentage {
+            font-size: 28px; font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .progress-container { margin-bottom: 20px; }
+        .progress-bar {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-gradient);
+            border-radius: 6px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 0%;
+        }
+        .progress-markers { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; color: var(--text-muted); }
+        .usage-details { display: flex; justify-content: space-between; }
+        .detail-item { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .detail-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .detail-value { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .detail-divider { width: 1px; height: 30px; background: rgba(255, 255, 255, 0.1); }
+        .time-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+        .time-info { display: flex; justify-content: space-between; }
+        .time-item { display: flex; align-items: center; gap: 12px; }
+        .time-icon { width: 20px; height: 20px; color: var(--accent-secondary); }
+        .time-content { display: flex; flex-direction: column; }
+        .time-label { font-size: 11px; color: var(--text-muted); }
+        .time-value { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+        .time-value.countdown { color: var(--warning); }
+        .model-card {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(124, 58, 237, 0.1);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+        }
+        .model-label { font-size: 12px; color: var(--text-secondary); }
+        .model-name { font-size: 13px; font-weight: 600; color: var(--accent-secondary); }
+        .widget-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .refresh-controls { display: flex; flex-direction: column; gap: 8px; }
+        .control-label { font-size: 11px; color: var(--text-muted); }
+        .refresh-buttons { display: flex; gap: 6px; }
+        .refresh-btn {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .refresh-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
+        .refresh-btn.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        .refresh-now-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 10px 16px;
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+            font-family: inherit;
+        }
+        .refresh-now-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5); }
+        .settings-section {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .settings-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px;
+            cursor: pointer;
+        }
+        .settings-header span { font-size: 13px; color: var(--text-secondary); }
+        .chevron { width: 16px; height: 16px; color: var(--text-muted); transition: transform 0.3s; }
+        .settings-section.expanded .chevron { transform: rotate(180deg); }
+        .settings-content { max-height: 0; overflow: hidden; transition: max-height 0.3s; }
+        .settings-section.expanded .settings-content { max-height: 200px; }
+        .input-group { padding: 0 16px 16px; }
+        .input-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-wrapper input {
+            width: 100%;
+            padding: 12px 40px 12px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .input-wrapper input:focus { outline: none; border-color: var(--accent-primary); }
+        .input-wrapper input::placeholder { color: var(--text-muted); }
+        .toggle-visibility {
+            position: absolute; right: 10px;
+            background: none; border: none;
+            color: var(--text-muted); cursor: pointer;
+            padding: 4px;
+        }
+        .toggle-visibility:hover { color: var(--text-secondary); }
+        .eye-icon { width: 18px; height: 18px; }
+        .hint-text { padding: 0 16px 16px; font-size: 11px; color: var(--text-muted); }
+        .hint-text a { color: var(--accent-secondary); text-decoration: none; }
+        .hint-text a:hover { text-decoration: underline; }
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 18px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid;
+        }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+        .toast.warning { border-color: var(--warning); }
+        .toast-message { font-size: 13px; color: var(--text-primary); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column; gap: 16px;
+            border-radius: 24px; z-index: 100;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .loading-text { font-size: 14px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <header class="widget-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/>
+                        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="title-section">
+                    <h1>MiniMax Coding Plan</h1>
+                    <span class="subtitle">用量监控</span>
+                </div>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text">就绪</span>
+            </div>
+        </header>
+
+        <main class="widget-main">
+            <div class="usage-card">
+                <div class="usage-header">
+                    <span class="usage-label">当前用量</span>
+                    <span class="usage-percentage" id="usagePercentage">0%</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-markers">
+                        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                    </div>
+                </div>
+                <div class="usage-details">
+                    <div class="detail-item">
+                        <span class="detail-label">已使用</span>
+                        <span class="detail-value" id="usedCount">-</span>
+                    </div>
+                    <div class="detail-divider"></div>
+                    <div class="detail-item">
+                        <span class="detail-label">总配额</span>
+                        <span class="detail-value" id="totalCount">-</span>
+                    </div>
+                    <div class="detail-divider"></div>
+                    <div class="detail-item">
+                        <span class="detail-label">剩余</span>
+                        <span class="detail-value" id="remainCount">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="time-card">
+                <div class="time-info">
+                    <div class="time-item">
+                        <svg class="time-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                        </svg>
+                        <div class="time-content">
+                            <span class="time-label">当前周期</span>
+                            <span class="time-value" id="currentPeriod">-</span>
+                        </div>
+                    </div>
+                    <div class="time-item">
+                        <svg class="time-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        <div class="time-content">
+                            <span class="time-label">重置倒计时</span>
+                            <span class="time-value countdown" id="resetCountdown">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="model-card">
+                <span class="model-label">当前模型</span>
+                <span class="model-name" id="modelName">MiniMax-M2</span>
+            </div>
+        </main>
+
+        <footer class="widget-footer">
+            <div class="refresh-controls">
+                <span class="control-label">自动刷新</span>
+                <div class="refresh-buttons">
+                    <button class="refresh-btn" data-interval="60" onclick="setRefreshInterval(60)">1分钟</button>
+                    <button class="refresh-btn" data-interval="180" onclick="setRefreshInterval(180)">3分钟</button>
+                    <button class="refresh-btn active" data-interval="600" onclick="setRefreshInterval(600)">10分钟</button>
+                </div>
+            </div>
+            <button class="refresh-now-btn" id="refreshBtn" onclick="fetchUsageData()">
+                <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                <span>立即刷新</span>
+            </button>
+        </footer>
+
+        <div class="settings-section" id="settingsSection">
+            <div class="settings-header" onclick="toggleSettings()">
+                <span>API Key 设置</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+            <div class="settings-content">
+                <div class="input-group">
+                    <label for="apiKeyInput">MiniMax API Key</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="apiKeyInput" placeholder="输入您的 Coding Plan API Key" onchange="saveApiKey()">
+                        <button class="toggle-visibility" onclick="togglePasswordVisibility()">
+                            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="hint-text">
+                    从 <a href="https://platform.minimaxi.com/user-center/basic-information/interface-key" target="_blank">MiniMax 开放平台</a> 获取 API Key
+                </p>
+            </div>
+        </div>
+
+        <div class="toast-container" id="toastContainer"></div>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <span class="loading-text">加载中...</span>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains';
+        let apiKey = localStorage.getItem('minimax_api_key') || '';
+        let refreshInterval = parseInt(localStorage.getItem('refresh_interval')) || 600;
+        let autoRefreshTimer = null;
+        let countdownTimer = null;
+
+        const statusIndicator = document.getElementById('statusIndicator');
+        const usagePercentage = document.getElementById('usagePercentage');
+        const progressFill = document.getElementById('progressFill');
+        const usedCount = document.getElementById('usedCount');
+        const totalCount = document.getElementById('totalCount');
+        const remainCount = document.getElementById('remainCount');
+        const currentPeriod = document.getElementById('currentPeriod');
+        const resetCountdown = document.getElementById('resetCountdown');
+        const modelName = document.getElementById('modelName');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const settingsSection = document.getElementById('settingsSection');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            apiKeyInput.value = apiKey;
+            updateRefreshButtons();
+            startAutoRefresh();
+            if (apiKey) fetchUsageData();
+            else { showToast('请先设置 API Key', 'warning'); settingsSection.classList.add('expanded'); }
+            if (window.electronAPI && window.electronAPI.onRefreshData) {
+                window.electronAPI.onRefreshData(() => fetchUsageData());
+            }
+        });
+
+        async function fetchUsageData() {
+            if (!apiKey) {
+                showToast('请先设置 API Key', 'warning');
+                settingsSection.classList.add('expanded');
+                return;
+            }
+            setLoading(true);
+            setStatus('loading');
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const data = await response.json();
+                if (data.base_resp && data.base_resp.status_code !== 0) {
+                    throw new Error(data.base_resp.status_msg || 'API 请求失败');
+                }
+                updateUI(data);
+                setStatus('success');
+                showToast('数据更新成功', 'success');
+            } catch (error) {
+                setStatus('error');
+                showToast(error.message || '获取数据失败', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function updateUI(data) {
+            if (!data.model_remains || data.model_remains.length === 0) {
+                showToast('暂无用量数据', 'warning');
+                return;
+            }
+            const modelData = data.model_remains[0];
+            const total = modelData.current_interval_total_count;
+            const used = modelData.current_interval_usage_count;
+            const remaining = total - used;
+            const percentage = Math.round((used / total) * 100);
+            usagePercentage.textContent = percentage + '%';
+            progressFill.style.width = percentage + '%';
+            usedCount.textContent = used.toLocaleString();
+            totalCount.textContent = total.toLocaleString();
+            remainCount.textContent = remaining.toLocaleString();
+            const startTime = new Date(modelData.start_time);
+            const endTime = new Date(modelData.end_time);
+            const formatTime = (date) => date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            currentPeriod.textContent = formatTime(startTime) + ' - ' + formatTime(endTime);
+            startCountdown(endTime);
+            modelName.textContent = modelData.model_name || 'MiniMax-M2';
+            if (percentage > 80) {
+                showToast('用量已达 ' + percentage + '%，注意配额使用！', 'warning');
+                if (window.electronAPI && window.electronAPI.showNotification) {
+                    window.electronAPI.showNotification('MiniMax 用量提醒', 'Coding Plan 用量已达 ' + percentage + '%');
+                }
+            }
+        }
+
+        function startCountdown(endTime) {
+            if (countdownTimer) clearInterval(countdownTimer);
+            countdownTimer = setInterval(() => {
+                const diff = endTime - new Date();
+                if (diff <= 0) {
+                    resetCountdown.textContent = '已重置';
+                    clearInterval(countdownTimer);
+                    fetchUsageData();
+                    return;
+                }
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                resetCountdown.textContent = hours > 0 ? hours + '小时' + minutes + '分' : minutes + '分' + seconds + '秒';
+            }, 1000);
+        }
+
+        function setRefreshInterval(seconds) {
+            refreshInterval = seconds;
+            localStorage.setItem('refresh_interval', seconds);
+            updateRefreshButtons();
+            startAutoRefresh();
+            showToast('已设置为 ' + (seconds >= 60 ? seconds/60 + '分钟' : seconds + '秒') + ' 自动刷新', 'success');
+        }
+
+        function updateRefreshButtons() {
+            document.querySelectorAll('.refresh-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.interval) === refreshInterval);
+            });
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            if (apiKey && refreshInterval > 0) {
+                autoRefreshTimer = setInterval(fetchUsageData, refreshInterval * 1000);
+            }
+        }
+
+        function setStatus(status) {
+            statusIndicator.className = 'status-indicator ' + status;
+            const statusText = statusIndicator.querySelector('.status-text');
+            statusText.textContent = status === 'loading' ? '加载中' : status === 'success' ? '已连接' : status === 'error' ? '错误' : '就绪';
+        }
+
+        function setLoading(loading) {
+            loadingOverlay.classList.toggle('active', loading);
+            refreshBtn.classList.toggle('loading', loading);
+        }
+
+        function toggleSettings() { settingsSection.classList.toggle('expanded'); }
+
+        function saveApiKey() {
+            apiKey = apiKeyInput.value.trim();
+            localStorage.setItem('minimax_api_key', apiKey);
+            if (apiKey) {
+                showToast('API Key 已保存', 'success');
+                startAutoRefresh();
+                fetchUsageData();
+            }
+        }
+
+        function togglePasswordVisibility() {
+            apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.innerHTML = '<span class="toast-message">' + message + '</span>';
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                fetchUsageData();
+            }
+        });
+    </script>
+</body>
+</html>
