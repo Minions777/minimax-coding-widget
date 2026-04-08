@@ -1,6 +1,1 @@
-const { contextBridge, ipcRenderer } = require('electron');
-
-contextBridge.exposeInMainWorld('minimaxAPI', {
-  getPlatform: () => ipcRenderer.invoke('get-platform'),
-  getTheme: () => ipcRenderer.invoke('get-theme'),
-});
+Y29uc3QgeyBjb250ZXh0QnJpZGdlLCBpcGNSZW5kZXJlciB9ID0gcmVxdWlyZSgnZWxlY3Ryb24nKTsKCmNvbnRleHRCcmlkZ2UuZXhwb3NlSW5NYWluV29ybGQoJ21pbmltYXhBUEknLCB7CiAgZ2V0UGxhdGZvcm06ICgpID0+IGlwY1JlbmRlcmVyLmludm9rZSgnZ2V0LXBsYXRmb3JtJyksCiAgZ2V0VGhlbWU6ICgpID0+IGlwY1JlbmRlcmVyLmludm9rZSgnZ2V0LXRoZW1lJyksCn0pOwo=
