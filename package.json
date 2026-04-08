@@ -1,17 +1,15 @@
 {
   "name": "minimax-coding-widget",
-  "version": "1.0.0",
-  "description": "MiniMax Coding Plan 用量监控桌面小工具",
-  "main": "main.js",
+  "version": "2.0.0",
+  "description": "MiniMax Coding Plan 用量监控桌面小工具 - 支持 Windows 11 和 macOS",
+  "main": "src/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --enable-logging",
-    "build": "electron-builder --win",
-    "build:win": "electron-builder --win"
-  },
-  "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "dev": "electron .",
+    "build": "npm run build:win && npm run build:mac",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder -mwl",
+    "generate-icons": "node generate-icons.js"
   },
   "build": {
     "appId": "com.minimax.coding-widget",
@@ -19,16 +17,34 @@
     "directories": {
       "output": "dist"
     },
-    "files": [
-      "index.html",
-      "main.js",
-      "preload.js"
-    ],
     "win": {
       "target": [
         "nsis",
         "portable"
       ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities"
     }
+  },
+  "keywords": [
+    "minimax",
+    "coding",
+    "widget",
+    "cross-platform"
+  ],
+  "author": "Minions777",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7"
   }
 }
